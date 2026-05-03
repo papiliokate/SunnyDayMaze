@@ -1,8 +1,8 @@
 name: Daily Video Generation
 
 on:
-  schedule:
-    - cron: '0 12 * * *' # Daily at 12:00 UTC
+  repository_dispatch:
+    types: [generate-daily-video]
   workflow_dispatch:
 
 jobs:
