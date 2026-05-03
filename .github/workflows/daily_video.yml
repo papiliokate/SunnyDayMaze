@@ -21,8 +21,8 @@ jobs:
 
       - name: Randomize Video Format
         run: |
-          FORMATS=("standard" "fail" "interactive" "glitch" "split")
-          SELECTED_FORMAT=${FORMATS[$(( $RANDOM % 5 ))]}
+          FORMATS=("split")
+          SELECTED_FORMAT=${FORMATS[$(( $RANDOM % 1 ))]}
           echo "Selected Format: $SELECTED_FORMAT"
           echo "FORMAT=$SELECTED_FORMAT" >> $GITHUB_ENV
 
