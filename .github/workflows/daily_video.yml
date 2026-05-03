@@ -21,8 +21,8 @@ jobs:
 
       - name: Randomize Video Format
         run: |
-          FORMATS=("split")
-          SELECTED_FORMAT=${FORMATS[$(( $RANDOM % 1 ))]}
+          FORMATS=("standard" "fail" "interactive" "glitch" "split")
+          SELECTED_FORMAT=${FORMATS[$(( $RANDOM % 5 ))]}
           echo "Selected Format: $SELECTED_FORMAT"
           echo "FORMAT=$SELECTED_FORMAT" >> $GITHUB_ENV
 
@@ -45,6 +45,6 @@ jobs:
 
       - name: Trigger Zapier Webhook
         run: |
-          curl -X POST https://hooks.zapier.com/hooks/catch/some_id/some_key/ \
-               -H "Content-Type: application/json" \
-               -d "{\"videoUrl\": \"https://sunny-day-maze.web.app/daily_video.mp4\", \"game\": \"Sunny Day Maze\", \"tags\": [\"#puzzle\", \"#maze\", \"#sunflower\"]}"
+          curl --fail --silent --show-error -X POST -H "Content-Type: application/json" \
+          -d "{\"video_url\": \"https://sunny-day-maze.web.app/daily_video.mp4\", \"text\": \"Sunny Day Puzzle from Oops-games #BrainTraining #DailyPuzzle #SunnyDayMaze\", \"youtube_title\": \"Sunny Day Puzzle (#Gaming)\", \"target_channel\": \"all\"}" \
+          https://hooks.zapier.com/hooks/catch/27231889/ujm5mjh/ || exit 1
