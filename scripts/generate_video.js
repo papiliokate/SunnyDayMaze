@@ -107,10 +107,13 @@ async function main() {
         fs.writeFileSync(TTS_PATH, Buffer.from([]));
     }
 
+    const isSplit = FORMAT === 'split';
+    const videoHeight = isSplit ? 640 : 1280;
+
     const browser = await puppeteer.launch({
         headless: 'new',
         args: [
-            '--window-size=720,1280',
+            `--window-size=720,${videoHeight}`,
             '--autoplay-policy=no-user-gesture-required',
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -119,16 +122,16 @@ async function main() {
     });
 
     const page = await browser.newPage();
-    await page.setViewport({ width: 720, height: 1280 });
+    await page.setViewport({ width: 720, height: videoHeight });
     
     const recorder = new PuppeteerScreenRecorder(page, {
         fps: 30,
         ffmpeg_Path: ffmpegInstaller.path,
         videoFrame: {
             width: 720,
-            height: 1280,
+            height: videoHeight,
         },
-        aspectRatio: '9:16',
+        aspectRatio: isSplit ? '9:8' : '9:16',
     });
 
     console.log("Navigating to game and starting recording...");
@@ -159,28 +162,73 @@ async function main() {
     console.log("Compositing TikTok video using FFmpeg...");
     
     await new Promise((resolve, reject) => {
-        ffmpeg()
-            .input(RAW_VIDEO)
-            .input(BGM_PATH).inputOptions(['-stream_loop', '-1'])
-            .input(TTS_PATH)
-            .complexFilter([
-                '[1:a]volume=0.3[bgm_quiet]',
-                '[2:a]volume=1.5[tts_loud]',
-                '[bgm_quiet][tts_loud]amix=inputs=2:duration=first:dropout_transition=3[audio_out]'
-            ])
-            .outputOptions([
-                '-y',
-                '-map 0:v',
-                '-map [audio_out]',
-                '-c:v libx264',
-                '-pix_fmt yuv420p',
-                '-preset slow',
-                '-crf 18',
-                '-c:a aac',
-                '-b:a 192k',
-                '-shortest'
-            ])
-            .save(FINAL_VIDEO)
+        let cmd = ffmpeg().input(RAW_VIDEO);
+
+        if (FORMAT === 'split') {
+            const ASMR_DIR = path.resolve('public/asmr');
+            const RELAX_DIR = path.resolve('public/relaxing_audio');
+            
+            let asmrFile = '';
+            if (fs.existsSync(ASMR_DIR)) {
+                const asmrFiles = fs.readdirSync(ASMR_DIR).filter(f => f.endsWith('.mp4'));
+                if (asmrFiles.length > 0) asmrFile = path.resolve(ASMR_DIR, asmrFiles[Math.floor(Math.random() * asmrFiles.length)]);
+            }
+            
+            let relaxFile = '';
+            if (fs.existsSync(RELAX_DIR)) {
+                const relaxFiles = fs.readdirSync(RELAX_DIR).filter(f => f.endsWith('.mp3') || f.endsWith('.wav'));
+                if (relaxFiles.length > 0) relaxFile = path.resolve(RELAX_DIR, relaxFiles[Math.floor(Math.random() * relaxFiles.length)]);
+            }
+
+            if (asmrFile && relaxFile) {
+                cmd.input(asmrFile).inputOptions(['-stream_loop', '-1'])
+                   .input(relaxFile).inputOptions(['-stream_loop', '-1'])
+                   .complexFilter([
+                       '[1:v]scale=720:640:force_original_aspect_ratio=increase,crop=720:640[asmr_scaled]',
+                       '[0:v][asmr_scaled]vstack=inputs=2[v_out]',
+                       '[1:a]volume=0.5[asmr_audio]',
+                       '[2:a]volume=0.5[relax_audio]',
+                       '[asmr_audio][relax_audio]amix=inputs=2:duration=first:dropout_transition=3[audio_out]'
+                   ])
+                   .outputOptions([
+                       '-y',
+                       '-map [v_out]',
+                       '-map [audio_out]',
+                       '-c:v libx264',
+                       '-pix_fmt yuv420p',
+                       '-preset slow',
+                       '-crf 18',
+                       '-c:a aac',
+                       '-b:a 192k',
+                       '-shortest'
+                   ]);
+            } else {
+                 console.warn("Missing ASMR or Relaxing Audio files! Falling back to raw video.");
+                 cmd.outputOptions(['-y', '-map 0:v', '-c:v copy']);
+            }
+        } else {
+            cmd.input(BGM_PATH).inputOptions(['-stream_loop', '-1'])
+               .input(TTS_PATH)
+               .complexFilter([
+                   '[1:a]volume=0.3[bgm_quiet]',
+                   '[2:a]volume=1.5[tts_loud]',
+                   '[bgm_quiet][tts_loud]amix=inputs=2:duration=first:dropout_transition=3[audio_out]'
+               ])
+               .outputOptions([
+                   '-y',
+                   '-map 0:v',
+                   '-map [audio_out]',
+                   '-c:v libx264',
+                   '-pix_fmt yuv420p',
+                   '-preset slow',
+                   '-crf 18',
+                   '-c:a aac',
+                   '-b:a 192k',
+                   '-shortest'
+               ]);
+        }
+        
+        cmd.save(FINAL_VIDEO)
             .on('end', () => {
                 console.log(`Successfully generated TikTok video at: ${FINAL_VIDEO}`);
                 resolve();
