@@ -29,7 +29,7 @@ jobs:
       - name: Install system dependencies for Puppeteer & FFmpeg
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg xvfb libgbm-dev libnss3 libatk-bridge2.0-0 libxcomposite1 libxrandr2 libasound2 libpangocairo-1.0-0 libxshmfence1
+          sudo apt-get install -y ffmpeg xvfb libgbm-dev libnss3 libatk-bridge2.0-0 libxcomposite1 libxrandr2 libpangocairo-1.0-0 libxshmfence1
 
       - name: Install NPM packages
         run: npm ci
