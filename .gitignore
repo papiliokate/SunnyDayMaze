@@ -1,0 +1,6 @@
+node_modules
+dist
+.env
+raw.mp4
+public/daily_video.mp4
+public/tts.mp3

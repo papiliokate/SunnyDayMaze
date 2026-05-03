@@ -1,0 +1,45 @@
+name: Daily Video Generation
+
+on:
+  schedule:
+    - cron: '0 12 * * *' # Daily at 12:00 UTC
+  workflow_dispatch:
+
+jobs:
+  generate-video:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install system dependencies for Puppeteer & FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg xvfb libgbm-dev libnss3 libatk-bridge2.0-0 libxcomposite1 libxrandr2 libasound2 libpangocairo-1.0-0 libxshmfence1
+
+      - name: Install NPM packages
+        run: npm ci
+
+      - name: Generate Video (with xvfb)
+        env:
+          FORMAT: standard
+        run: xvfb-run --auto-servernum node scripts/generate_video.js
+
+      - name: Build Application for Hosting
+        run: npm run build
+
+      - name: Deploy to Firebase Hosting (Standalone App Endpoint)
+        run: npx firebase-tools deploy --only hosting:sunny-day-maze --project oops-games-hub --token ${{ secrets.FIREBASE_TOKEN }}
+
+      - name: Trigger Zapier Webhook
+        run: |
+          curl -X POST https://hooks.zapier.com/hooks/catch/some_id/some_key/ \
+               -H "Content-Type: application/json" \
+               -d "{\"videoUrl\": \"https://sunny-day-maze.web.app/daily_video.mp4\", \"game\": \"Sunny Day Maze\", \"tags\": [\"#puzzle\", \"#maze\", \"#sunflower\"]}"
