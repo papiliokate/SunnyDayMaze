@@ -162,6 +162,16 @@ async function main() {
     console.log("Compositing TikTok video using FFmpeg...");
     
     await new Promise((resolve, reject) => {
+        let duration = 60; // fallback
+        try {
+            const probe = require('child_process').execSync(`"${ffmpegInstaller.path}" -i "${RAW_VIDEO}" 2>&1`, {encoding: 'utf8'});
+            const match = probe.match(/Duration: (\d+):(\d+):(\d+\.\d+)/);
+            if (match) {
+               duration = parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + Math.ceil(parseFloat(match[3]));
+               console.log("Raw video duration parsed:", duration);
+            }
+        } catch(e) {}
+
         let cmd = ffmpeg().input(RAW_VIDEO);
 
         if (FORMAT === 'split') {
@@ -185,7 +195,8 @@ async function main() {
                    .input(relaxFile).inputOptions(['-stream_loop', '-1'])
                    .complexFilter([
                        '[1:v]scale=720:640:force_original_aspect_ratio=increase,crop=720:640[asmr_scaled]',
-                       '[0:v][asmr_scaled]vstack=inputs=2[v_out]',
+                       '[0:v]pad=720:1280:0:0[bg]',
+                       '[bg][asmr_scaled]overlay=0:640:shortest=1[v_out]',
                        '[1:a]volume=0.5[asmr_audio]',
                        '[2:a]volume=0.5[relax_audio]',
                        '[asmr_audio][relax_audio]amix=inputs=2:duration=first:dropout_transition=3[audio_out]'
@@ -196,11 +207,11 @@ async function main() {
                        '-map [audio_out]',
                        '-c:v libx264',
                        '-pix_fmt yuv420p',
-                       '-preset slow',
+                       '-preset ultrafast',
                        '-crf 18',
                        '-c:a aac',
                        '-b:a 192k',
-                       '-shortest'
+                       `-t ${duration}`
                    ]);
             } else {
                  console.warn("Missing ASMR or Relaxing Audio files! Falling back to raw video.");
@@ -220,7 +231,7 @@ async function main() {
                    '-map [audio_out]',
                    '-c:v libx264',
                    '-pix_fmt yuv420p',
-                   '-preset slow',
+                   '-preset ultrafast',
                    '-crf 18',
                    '-c:a aac',
                    '-b:a 192k',
