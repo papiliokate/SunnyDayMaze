@@ -19,6 +19,13 @@ jobs:
           node-version: '18'
           cache: 'npm'
 
+      - name: Randomize Video Format
+        run: |
+          FORMATS=("standard" "fail" "interactive" "glitch")
+          SELECTED_FORMAT=${FORMATS[$(( $RANDOM % 4 ))]}
+          echo "Selected Format: $SELECTED_FORMAT"
+          echo "FORMAT=$SELECTED_FORMAT" >> $GITHUB_ENV
+
       - name: Install system dependencies for Puppeteer & FFmpeg
         run: |
           sudo apt-get update
@@ -28,8 +35,6 @@ jobs:
         run: npm ci
 
       - name: Generate Video (with xvfb)
-        env:
-          FORMAT: standard
         run: xvfb-run --auto-servernum node scripts/generate_video.js
 
       - name: Build Application for Hosting

@@ -738,14 +738,23 @@ function loop() {
   if (isPlaying) {
     if (autoplayMode) {
       if (autoplayIndex < autoplayPath.length) {
-        const t = autoplayPath[autoplayIndex];
-        targetInput = { x: t.x + (LOGICAL_WIDTH / 2), y: t.y + (LOGICAL_HEIGHT / 2) };
-        let dx = t.x - player.x;
-        let dy = t.y - player.y;
-        if (Math.hypot(dx, dy) < TRACK_WIDTH * 0.8) {
-           autoplayIndex++;
+        if (autoplayMode === 'interactive' && autoplayIndex > autoplayPath.length * 0.6) {
+            isDragging = false;
+        } else {
+            let t = autoplayPath[autoplayIndex];
+            if (autoplayMode === 'fail' && autoplayIndex > autoplayPath.length * 0.4) {
+                t = { x: t.x * 1.5, y: -t.y }; 
+            } else if (autoplayMode === 'glitch') {
+                t = { x: t.x + (Math.random() * 80 - 40), y: t.y + (Math.random() * 80 - 40) };
+            }
+            targetInput = { x: t.x + (LOGICAL_WIDTH / 2), y: t.y + (LOGICAL_HEIGHT / 2) };
+            let dx = t.x - player.x;
+            let dy = t.y - player.y;
+            if (Math.hypot(dx, dy) < TRACK_WIDTH * 0.8) {
+               autoplayIndex++;
+            }
+            isDragging = true;
         }
-        isDragging = true;
       }
     }
 
@@ -896,7 +905,7 @@ function gameOver(win) {
   }
 
   // Handle Video Generation Flag
-  if (autoplayMode && win) {
+  if (autoplayMode) {
      if (!window._VIDEO_RECORDING_DONE_TIMEOUT_SET) {
         window._VIDEO_RECORDING_DONE_TIMEOUT_SET = true;
         setTimeout(() => window._VIDEO_RECORDING_DONE = true, 4000);

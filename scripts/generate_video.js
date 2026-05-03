@@ -51,10 +51,44 @@ async function main() {
             "Let's see if you can solve this one. Give it a try at the link in our bio!",
             "A new day, a new puzzle. Check out the link in our bio to play yourself!",
             "Do you have what it takes to beat today's challenge? Play free from our profile!"
+        ],
+        fail: [
+            "This maze is genuinely so difficult. Even the bot got stuck! Think you can do better? Try it at the link in our bio!",
+            "I can't believe the AI went the wrong way! Can you solve it? Link in bio to play.",
+            "Wow, this one is tough. Even the computer got lost. Prove you're better via our profile link!",
+            "Absolute disaster of a run! Think you can do better? Try the challenge for free at the link in our bio.",
+            "It missed the exit entirely! Can you beat this level? Play for free via the link in our profile."
+        ],
+        interactive: [
+            "Only 1% of players memorize the path well enough to find the exit. Which way should I go? Play for free via the link in our profile!",
+            "Which path leads to the center? Let us know in the comments and play at the link in our bio!",
+            "Can you spot the final turn? Test your skills for free via the link in our profile.",
+            "You only have one chance to get this right. Left or right? Link in bio to play!",
+            "Are you smart enough to escape the maze? Play the full game for free using the link in our bio."
+        ],
+        glitch: [
+            "The system is glitching! Can you solve the maze before it crashes? Link in bio to play.",
+            "Warning: Maze corrupted. Help me find the center! Play at the link in our bio.",
+            "Everything is glitching out! Can you escape? Try the challenge for free at the link in our bio.",
+            "System error... maze instability detected. Prove you're better via our profile link!",
+            "The sunflower is acting strange! Can you beat this level? Play for free via the link in our profile."
         ]
     };
 
-    const pool = ttsPools.standard;
+    let urlParam = 'standard';
+    let pool = ttsPools.standard;
+    
+    if (FORMAT === 'fail') {
+        urlParam = 'fail';
+        pool = ttsPools.fail;
+    } else if (FORMAT === 'interactive') {
+        urlParam = 'interactive';
+        pool = ttsPools.interactive;
+    } else if (FORMAT === 'glitch') {
+        urlParam = 'glitch';
+        pool = ttsPools.glitch;
+    }
+
     const ttsText = pool[Math.floor(Math.random() * pool.length)];
 
     console.log("Generating TTS audio...");
@@ -99,7 +133,7 @@ async function main() {
 
     console.log("Navigating to game and starting recording...");
     try {
-        await page.goto(`http://127.0.0.1:5173/?autoplay=standard`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await page.goto(`http://127.0.0.1:5173/?autoplay=${urlParam}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
     } catch (e) {
         console.warn("Navigation timeout reached, but we will wait for internal game completion flag.", e.message);
     }
