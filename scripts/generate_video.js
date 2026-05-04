@@ -87,6 +87,8 @@ async function main() {
     } else if (FORMAT === 'glitch') {
         urlParam = 'glitch';
         pool = ttsPools.glitch;
+    } else if (FORMAT === 'split') {
+        urlParam = 'split';
     }
 
     const ttsText = pool[Math.floor(Math.random() * pool.length)];
@@ -108,12 +110,20 @@ async function main() {
     }
 
     const isSplit = FORMAT === 'split';
-    const videoHeight = isSplit ? 640 : 1280;
+    
+    let asmrFilename = '';
+    if (isSplit) {
+        const ASMR_DIR = path.resolve('public/asmr');
+        if (fs.existsSync(ASMR_DIR)) {
+            const asmrFiles = fs.readdirSync(ASMR_DIR).filter(f => f.endsWith('.mp4'));
+            if (asmrFiles.length > 0) asmrFilename = asmrFiles[Math.floor(Math.random() * asmrFiles.length)];
+        }
+    }
 
     const browser = await puppeteer.launch({
         headless: 'new',
         args: [
-            `--window-size=720,${videoHeight}`,
+            `--window-size=720,1280`,
             '--autoplay-policy=no-user-gesture-required',
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -122,21 +132,25 @@ async function main() {
     });
 
     const page = await browser.newPage();
-    await page.setViewport({ width: 720, height: videoHeight });
+    await page.setViewport({ width: 720, height: 1280 });
     
     const recorder = new PuppeteerScreenRecorder(page, {
         fps: 30,
         ffmpeg_Path: ffmpegInstaller.path,
         videoFrame: {
             width: 720,
-            height: videoHeight,
+            height: 1280,
         },
-        aspectRatio: isSplit ? '9:8' : '9:16',
+        aspectRatio: '9:16',
     });
 
     console.log("Navigating to game and starting recording...");
     try {
-        await page.goto(`http://127.0.0.1:5173/?autoplay=${urlParam}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        let gameUrl = `http://127.0.0.1:5173/?autoplay=${urlParam}`;
+        if (isSplit && asmrFilename) {
+            gameUrl += `&asmr=${encodeURIComponent(asmrFilename)}`;
+        }
+        await page.goto(gameUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
     } catch (e) {
         console.warn("Navigation timeout reached, but we will wait for internal game completion flag.", e.message);
     }
@@ -144,13 +158,21 @@ async function main() {
     console.log("Starting Puppeteer Screen Recorder...");
     await recorder.start(RAW_VIDEO);
 
+    let actualDuration = 60;
+
     console.log("Recording... Waiting for game completion.");
     
-    let gameWon = false;
-    for (let i = 0; i < 240; i++) { 
-        gameWon = await page.evaluate(() => window._VIDEO_RECORDING_DONE === true);
-        if (gameWon) break;
-        await sleep(500);
+    if (isSplit) {
+        actualDuration = Math.floor(Math.random() * (25 - 15 + 1)) + 15;
+        console.log(`Split format selected. Recording for exactly ${actualDuration} seconds...`);
+        await sleep(actualDuration * 1000);
+    } else {
+        let gameWon = false;
+        for (let i = 0; i < 240; i++) { 
+            gameWon = await page.evaluate(() => window._VIDEO_RECORDING_DONE === true);
+            if (gameWon) break;
+            await sleep(500);
+        }
     }
 
     console.log("Gameplay finished. Saving video...");
@@ -162,15 +184,19 @@ async function main() {
     console.log("Compositing TikTok video using FFmpeg...");
     
     await new Promise((resolve, reject) => {
-        let duration = 60; // fallback
-        try {
-            const probe = require('child_process').execSync(`"${ffmpegInstaller.path}" -i "${RAW_VIDEO}" 2>&1`, {encoding: 'utf8'});
-            const match = probe.match(/Duration: (\d+):(\d+):(\d+\.\d+)/);
-            if (match) {
-               duration = parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + Math.ceil(parseFloat(match[3]));
-               console.log("Raw video duration parsed:", duration);
-            }
-        } catch(e) {}
+        let duration = actualDuration; // Set by recorder logic
+        if (!isSplit) {
+            try {
+                const probe = require('child_process').execSync(`"${ffmpegInstaller.path}" -i "${RAW_VIDEO}" 2>&1`, {encoding: 'utf8'});
+                const match = probe.match(/Duration: (\d+):(\d+):(\d+\.\d+)/);
+                if (match) {
+                   duration = parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + Math.ceil(parseFloat(match[3]));
+                   console.log("Raw video duration parsed:", duration);
+                }
+            } catch(e) {}
+        } else {
+            console.log("Using randomized duration for split video:", duration);
+        }
 
         let cmd = ffmpeg().input(RAW_VIDEO);
 
@@ -178,13 +204,9 @@ async function main() {
             const ASMR_DIR = path.resolve('public/asmr');
             const RELAX_DIR = path.resolve('public/relaxing_audio');
             
-            let asmrFile = '';
-            if (fs.existsSync(ASMR_DIR)) {
-                const asmrFiles = fs.readdirSync(ASMR_DIR).filter(f => f.endsWith('.mp4'));
-                if (asmrFiles.length > 0) asmrFile = path.resolve(ASMR_DIR, asmrFiles[Math.floor(Math.random() * asmrFiles.length)]);
-            }
-            
+            let asmrFile = asmrFilename ? path.resolve(ASMR_DIR, asmrFilename) : '';
             let relaxFile = '';
+            
             if (fs.existsSync(RELAX_DIR)) {
                 const relaxFiles = fs.readdirSync(RELAX_DIR).filter(f => f.endsWith('.mp3') || f.endsWith('.wav'));
                 if (relaxFiles.length > 0) relaxFile = path.resolve(RELAX_DIR, relaxFiles[Math.floor(Math.random() * relaxFiles.length)]);
@@ -194,16 +216,13 @@ async function main() {
                 cmd.input(asmrFile).inputOptions(['-stream_loop', '-1'])
                    .input(relaxFile).inputOptions(['-stream_loop', '-1'])
                    .complexFilter([
-                       '[1:v]scale=720:640:force_original_aspect_ratio=increase,crop=720:640[asmr_scaled]',
-                       '[0:v]pad=720:1280:0:0[bg]',
-                       '[bg][asmr_scaled]overlay=0:640:shortest=1[v_out]',
                        '[1:a]volume=0.5[asmr_audio]',
                        '[2:a]volume=0.5[relax_audio]',
                        '[asmr_audio][relax_audio]amix=inputs=2:duration=first:dropout_transition=3[audio_out]'
                    ])
                    .outputOptions([
                        '-y',
-                       '-map [v_out]',
+                       '-map 0:v',
                        '-map [audio_out]',
                        '-c:v libx264',
                        '-pix_fmt yuv420p',
@@ -215,7 +234,7 @@ async function main() {
                    ]);
             } else {
                  console.warn("Missing ASMR or Relaxing Audio files! Falling back to raw video.");
-                 cmd.outputOptions(['-y', '-map 0:v', '-c:v copy']);
+                 cmd.outputOptions(['-y', '-map 0:v', '-c:v libx264', '-preset ultrafast', '-crf 18']);
             }
         } else {
             cmd.input(BGM_PATH).inputOptions(['-stream_loop', '-1'])

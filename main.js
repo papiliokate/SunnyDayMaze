@@ -22,11 +22,19 @@ const isEmbed = urlParams.get('mode') === 'embed';
 const autoplayMode = urlParams.get('autoplay');
 let playedGames = urlParams.get('played') ? urlParams.get('played').split(',').filter(Boolean) : [];
 const CURRENT_GAME_ID = 'JM';
+
+let publisherDomain = 'unknown';
+if (document.referrer) {
+    try {
+        publisherDomain = new URL(document.referrer).hostname;
+    } catch(e) {}
+}
+
 if (isCarousel && !playedGames.includes(CURRENT_GAME_ID)) {
     playedGames.push(CURRENT_GAME_ID);
 }
 if (isCarousel && typeof analytics !== 'undefined') logEvent(analytics, 'carousel_visit', { game_id: CURRENT_GAME_ID });
-if (isEmbed && typeof analytics !== 'undefined') logEvent(analytics, 'embed_visit');
+if (isEmbed && typeof analytics !== 'undefined') logEvent(analytics, 'embed_visit', { publisher_domain: publisherDomain });
 
 window.getDailyCypher = function(gameIndex) {
     function mulberry32(a) {
@@ -183,8 +191,12 @@ function handleCollisionBonk() {
 }
 
 function resizeCanvas() {
+  let effectiveHeight = window.innerHeight;
+  if (autoplayMode === 'split') {
+      effectiveHeight = window.innerHeight / 2;
+  }
   const scaleWidth = window.innerWidth / LOGICAL_WIDTH;
-  const scaleHeight = window.innerHeight / LOGICAL_HEIGHT;
+  const scaleHeight = effectiveHeight / LOGICAL_HEIGHT;
   scale = Math.min(scaleWidth, scaleHeight);
 
   container.style.width = `${LOGICAL_WIDTH}px`;
@@ -194,7 +206,11 @@ function resizeCanvas() {
   
   container.style.position = 'absolute';
   container.style.left = '50%';
-  container.style.top = '50%';
+  if (autoplayMode === 'split') {
+      container.style.top = '25%';
+  } else {
+      container.style.top = '50%';
+  }
   container.style.marginLeft = `-${LOGICAL_WIDTH / 2}px`;
   container.style.marginTop = `-${LOGICAL_HEIGHT / 2}px`;
 
@@ -202,6 +218,44 @@ function resizeCanvas() {
   canvas.height = LOGICAL_HEIGHT;
 }
 window.addEventListener('resize', resizeCanvas);
+
+if (autoplayMode === 'split') {
+    const asmrFile = urlParams.get('asmr');
+    if (asmrFile) {
+        const vid = document.createElement('video');
+        vid.src = `/asmr/${asmrFile}`;
+        vid.autoplay = true;
+        vid.loop = true;
+        vid.muted = true;
+        vid.style.position = 'absolute';
+        vid.style.bottom = '0';
+        vid.style.left = '0';
+        vid.style.width = '100%';
+        vid.style.height = '50%';
+        vid.style.objectFit = 'cover';
+        document.body.appendChild(vid);
+    }
+    
+    const banner = document.createElement('div');
+    banner.innerText = "Sunny Day Puzzle from Oops-games";
+    banner.style.position = 'absolute';
+    banner.style.top = '50%';
+    banner.style.left = '50%';
+    banner.style.transform = 'translate(-50%, -50%)';
+    banner.style.background = 'rgba(0, 0, 0, 0.85)';
+    banner.style.color = '#fde047';
+    banner.style.padding = '12px 24px';
+    banner.style.borderRadius = '12px';
+    banner.style.border = '2px solid #b45309';
+    banner.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+    banner.style.fontWeight = '800';
+    banner.style.fontSize = '28px';
+    banner.style.zIndex = '1000';
+    banner.style.whiteSpace = 'nowrap';
+    banner.style.boxShadow = '0 4px 15px rgba(0,0,0,0.5)';
+    banner.style.textShadow = '1px 1px 2px rgba(0,0,0,0.8)';
+    document.body.appendChild(banner);
+}
 
 class PolarMaze {
   constructor(numRings) {
@@ -716,8 +770,13 @@ function getEventPoint(e) {
 
 let isDragging = false;
 let targetInput = null;
-const PLAYER_SPEED = 6;
+let PLAYER_SPEED = 6;
+if (autoplayMode === 'split') {
+    PLAYER_SPEED = 15; // Zoom through the maze to solve it quickly within the 15-25s time limit!
+}
 let lastScurryTime = 0;
+let stuckFrames = 0;
+let lastPlayerPos = {x: 0, y: 0};
 
 function handleInputDown(e) {
   if (!isPlaying) return;
@@ -747,12 +806,24 @@ function loop() {
             } else if (autoplayMode === 'glitch') {
                 t = { x: t.x + (Math.random() * 80 - 40), y: t.y + (Math.random() * 80 - 40) };
             }
-            targetInput = { x: t.x + (LOGICAL_WIDTH / 2), y: t.y + (LOGICAL_HEIGHT / 2) };
+            targetInput = { x: (t.x - player.x) + (LOGICAL_WIDTH / 2), y: (t.y - player.y) + (LOGICAL_HEIGHT / 2) };
             let dx = t.x - player.x;
             let dy = t.y - player.y;
             if (Math.hypot(dx, dy) < TRACK_WIDTH * 0.8) {
                autoplayIndex++;
+               stuckFrames = 0;
+            } else if (Math.hypot(player.x - lastPlayerPos.x, player.y - lastPlayerPos.y) < 0.5) {
+               stuckFrames++;
+               if (stuckFrames > 10) {
+                   autoplayIndex++;
+                   stuckFrames = 0;
+               }
+            } else {
+               stuckFrames = 0;
             }
+            lastPlayerPos = {x: player.x, y: player.y};
+            
+            if (Math.random() < 0.05) console.log(`[AUTOPLAY] Index: ${autoplayIndex}, Player: (${player.x.toFixed(1)}, ${player.y.toFixed(1)}), Target: (${t.x.toFixed(1)}, ${t.y.toFixed(1)}), Dist: ${Math.hypot(dx, dy).toFixed(1)}`);
             isDragging = true;
         }
       }
@@ -912,6 +983,12 @@ function gameOver(win) {
      }
   }
 
+  if (typeof analytics !== 'undefined') {
+      let eventParams = { win: win, timeRemaining: timeRemaining, seeds: totalSeedsCollected };
+      if (isEmbed) eventParams.publisher_domain = publisherDomain;
+      logEvent(analytics, 'game_over', eventParams);
+  }
+
   window.dispatchEvent(new CustomEvent('oops_game_over', { 
     detail: { win, timeRemaining, seeds: totalSeedsCollected } 
   }));
@@ -1012,3 +1089,9 @@ const advanceCarousel = async () => {
 };
 
 document.getElementById('btn-next')?.addEventListener('click', advanceCarousel);
+
+if (autoplayMode) {
+    setTimeout(() => {
+        initGame();
+    }, 500);
+}
