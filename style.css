@@ -125,15 +125,37 @@ canvas {
   border: 2px solid #fde047;
 }
 
+.captcha-mode #game-over-modal .modal-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  border: none;
+  border-radius: 0;
+}
+
 #tutorial-modal h2, #game-over-modal h2 {
   color: #fde047;
   margin-top: 0;
+}
+
+.captcha-mode #game-over-modal h2 {
+  font-size: 4rem;
+  margin-bottom: 20px;
 }
 
 #tutorial-modal p, #game-over-modal p {
   font-size: 1.1rem;
   line-height: 1.4;
   margin-bottom: 15px;
+}
+
+.captcha-mode #game-over-modal p {
+  font-size: 1.8rem;
+  line-height: 1.5;
+  margin-bottom: 30px;
 }
 
 #btn-close-tutorial {

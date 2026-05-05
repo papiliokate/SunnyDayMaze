@@ -12,7 +12,7 @@
     <div id="ui-layer">
       <span id="ui-level-container">Level <span id="level-num">1</span>/3</span>
       <span id="ui-seeds-container" style="font-weight:bold; color: #fde047; text-shadow: 1px 1px 2px #b45309;">Seeds: <span id="seed-val">0</span></span>
-      <span>Time: <span id="time-val">20.0</span>s</span>
+      <span id="ui-time-container">Time: <span id="time-val">20.0</span>s</span>
     </div>
     <div id="start-screen">
       <h1 id="start-title">Sunny Day Maze</h1>
@@ -63,6 +63,10 @@
         <div id="embed-buttons" class="hidden" style="display: none; flex-direction: column; gap: 10px; margin-top: 20px;">
           <p style="font-size: 1.1rem; margin-bottom: 10px; color: #f8fafc; font-weight: bold;">You survived Level 3! Only 4% of players make it this far.</p>
           <button id="btn-embed-hook" style="background: #e91e63; color: white; width: 100%; font-size: 1.3rem; padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">🚀 Play Full Game on Oops-Games</button>
+        </div>
+
+        <div id="captcha-buttons" class="hidden" style="display: none; flex-direction: column; gap: 10px; margin-top: 40px;">
+          <button id="btn-restart-captcha" style="padding: 25px 40px; font-size: 2rem; background: #eab308; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(234, 179, 8, 0.4);">🔄 Try Again</button>
         </div>
       </div>
     </div>

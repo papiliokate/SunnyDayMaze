@@ -101,6 +101,11 @@ const gameOverModal = document.getElementById('game-over-modal');
 const endTitle = document.getElementById('end-title');
 const endStats = document.getElementById('end-stats');
 
+if (isCaptcha) {
+    startScreen.style.display = 'none';
+    document.body.classList.add('captcha-mode');
+}
+
 let scale = 1;
 let totalSeedsCollected = 0;
 
@@ -365,6 +370,21 @@ class PolarMaze {
       }
     }
 
+    if (isCaptcha) {
+      for (let r = 1; r <= this.rings; r++) {
+        for (let cell of this.cells[r]) {
+          if (cell.links.size === 1) {
+            let unlinkedNeighbors = cell.neighbors.filter(n => !cell.links.has(n));
+            if (unlinkedNeighbors.length > 0) {
+              let neighbor = unlinkedNeighbors[Math.floor(Math.random() * unlinkedNeighbors.length)];
+              cell.links.add(neighbor);
+              neighbor.links.add(cell);
+            }
+          }
+        }
+      }
+    }
+
     for (let r = 1; r <= this.rings; r++) {
       for (let cell of this.cells[r]) {
         if (r === this.rings && cell.index === 0) continue;
@@ -438,6 +458,7 @@ let autoplayIndex = 0;
 function generatePath(level) {
 
   let numRings = 4 + level * 2; 
+  if (isCaptcha) numRings = 2;
   maze = new PolarMaze(numRings);
   
   let startR = (numRings + 0.5) * TRACK_WIDTH;
@@ -983,6 +1004,17 @@ function gameOver(win) {
       return;
   }
   
+  if (isCaptcha && win) {
+    const payload = {
+      type: 'oops_captcha_solved',
+      clientId,
+      solveTimeMs: Date.now() - captchaStartTime,
+      telemetry
+    };
+    window.parent.postMessage(payload, '*');
+    return; // Don't show the modal if they win the captcha
+  }
+
   gameOverModal.classList.remove('hidden');
   
   if (win) {
@@ -995,24 +1027,20 @@ function gameOver(win) {
     document.getElementById('vic-cypher').innerText = '';
   }
 
-  if (isCaptcha && win) {
-    endTitle.innerText = "Verifying Human...";
-    endStats.innerText = "Please wait.";
-    document.getElementById('vic-cypher').innerText = '';
-    const payload = {
-      type: 'oops_captcha_solved',
-      clientId,
-      solveTimeMs: Date.now() - captchaStartTime,
-      telemetry
-    };
-    window.parent.postMessage(payload, '*');
-  }
-
   const standardBtns = document.getElementById('standard-buttons');
   const carouselBtns = document.getElementById('carousel-buttons');
   const embedBtns = document.getElementById('embed-buttons');
+  const captchaBtns = document.getElementById('captcha-buttons');
   
-  if (isEmbed) {
+  if (isCaptcha && !win) {
+    standardBtns.style.display = 'none';
+    carouselBtns.style.display = 'none';
+    embedBtns.style.display = 'none';
+    if (captchaBtns) {
+        captchaBtns.style.display = 'flex';
+        captchaBtns.classList.remove('hidden');
+    }
+  } else if (isEmbed) {
     standardBtns.style.display = 'none';
     carouselBtns.style.display = 'none';
     embedBtns.style.display = 'flex';
@@ -1057,8 +1085,11 @@ function initGame() {
   if (isCaptcha) {
       const levelCont = document.getElementById('ui-level-container');
       const seedsCont = document.getElementById('ui-seeds-container');
+      const timeCont = document.getElementById('ui-time-container');
       if (levelCont) levelCont.style.display = 'none';
       if (seedsCont) seedsCont.style.display = 'none';
+      if (timeCont) timeCont.style.display = 'none';
+      timeRemaining = 30; // Override initial time
       captchaStartTime = Date.now();
       telemetry = [];
   }
@@ -1150,10 +1181,19 @@ const advanceCarousel = async () => {
 
 document.getElementById('btn-next')?.addEventListener('click', advanceCarousel);
 
+document.getElementById('btn-restart-captcha')?.addEventListener('click', () => {
+    gameOverModal.classList.add('hidden');
+    initGame();
+});
+
 if (autoplayMode || isCaptcha) {
-    setTimeout(() => {
+    if (isCaptcha) {
         initGame();
-    }, 500);
+    } else {
+        setTimeout(() => {
+            initGame();
+        }, 500);
+    }
 }
 
 // Waiting Room Logic
@@ -1164,11 +1204,17 @@ if (isWaitingRoom) {
       isDragging = false;
       clearInterval(timerInterval);
       const modal = document.getElementById('waiting-room-modal');
-      if (modal) modal.style.display = 'flex';
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+      }
       
       const btnFinish = document.getElementById('btn-wr-finish');
       if (btnFinish) btnFinish.onclick = () => {
-        if (modal) modal.style.display = 'none';
+        if (modal) {
+          modal.classList.add('hidden');
+          modal.style.display = 'none';
+        }
         window.autoProceedOnGameOver = true;
         isPlaying = true;
         startTimer();
