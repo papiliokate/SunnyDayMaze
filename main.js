@@ -19,6 +19,9 @@ try {
 const urlParams = new URLSearchParams(window.location.search);
 const isCarousel = urlParams.get('carousel') === 'true';
 const isEmbed = urlParams.get('mode') === 'embed';
+const isWaitingRoom = urlParams.get('mode') === 'waiting-room';
+const isCaptcha = urlParams.get('mode') === 'captcha';
+const clientId = urlParams.get('clientId') || 'unknown';
 const autoplayMode = urlParams.get('autoplay');
 let playedGames = urlParams.get('played') ? urlParams.get('played').split(',').filter(Boolean) : [];
 const CURRENT_GAME_ID = 'JM';
@@ -363,7 +366,7 @@ class PolarMaze {
     for (let r = 1; r <= this.rings; r++) {
       for (let cell of this.cells[r]) {
         if (r === this.rings && cell.index === 0) continue;
-        if (cell.links.size === 1 && Math.random() > 0.3) {
+        if (!isCaptcha && cell.links.size === 1 && Math.random() > 0.3) {
           let cR = (r + 0.5) * TRACK_WIDTH;
           let theta = Math.PI * 2 / this.cells[r].length;
           let cTheta = (cell.index + 0.5) * theta;
@@ -770,6 +773,8 @@ function getEventPoint(e) {
 
 let isDragging = false;
 let targetInput = null;
+let telemetry = [];
+let captchaStartTime = 0;
 let PLAYER_SPEED = 6;
 if (autoplayMode === 'split') {
     PLAYER_SPEED = 15; // Zoom through the maze to solve it quickly within the 15-25s time limit!
@@ -782,15 +787,18 @@ function handleInputDown(e) {
   if (!isPlaying) return;
   isDragging = true;
   targetInput = getEventPoint(e);
+  if (isCaptcha) telemetry.push({ t: 'down', x: targetInput.x, y: targetInput.y, ts: Date.now() });
 }
 
 function handleInputUp(e) {
   isDragging = false;
+  if (isCaptcha) telemetry.push({ t: 'up', ts: Date.now() });
 }
 
 function handleInputMove(e) {
   if (!isPlaying || !isDragging) return;
   targetInput = getEventPoint(e);
+  if (isCaptcha) telemetry.push({ t: 'move', x: targetInput.x, y: targetInput.y, ts: Date.now() });
 }
 
 function loop() {
@@ -902,7 +910,7 @@ function levelComplete() {
   clearInterval(timerInterval);
   isDragging = false;
   
-  if (currentLevel === 3) {
+  if (currentLevel === 3 || isCaptcha || isWaitingRoom) {
     gameOver(true);
   } else {
     doTransitionToNextLevel();
@@ -957,6 +965,19 @@ function gameOver(win) {
     document.getElementById('vic-cypher').innerText = '';
   }
 
+  if (isCaptcha && win) {
+    endTitle.innerText = "Verifying Human...";
+    endStats.innerText = "Please wait.";
+    document.getElementById('vic-cypher').innerText = '';
+    const payload = {
+      type: 'oops_captcha_solved',
+      clientId,
+      solveTimeMs: Date.now() - captchaStartTime,
+      telemetry
+    };
+    window.parent.postMessage(payload, '*');
+  }
+
   const standardBtns = document.getElementById('standard-buttons');
   const carouselBtns = document.getElementById('carousel-buttons');
   const embedBtns = document.getElementById('embed-buttons');
@@ -1002,6 +1023,15 @@ function initGame() {
   levelNum.innerText = currentLevel;
   updateTimeDisplay();
   startScreen.classList.add('hidden');
+  
+  if (isCaptcha) {
+      const levelCont = document.getElementById('ui-level-container');
+      const seedsCont = document.getElementById('ui-seeds-container');
+      if (levelCont) levelCont.style.display = 'none';
+      if (seedsCont) seedsCont.style.display = 'none';
+      captchaStartTime = Date.now();
+      telemetry = [];
+  }
   
   container.style.transition = 'none';
   container.style.transform = `scale(${scale})`;
@@ -1090,8 +1120,33 @@ const advanceCarousel = async () => {
 
 document.getElementById('btn-next')?.addEventListener('click', advanceCarousel);
 
-if (autoplayMode) {
+if (autoplayMode || isCaptcha) {
     setTimeout(() => {
         initGame();
     }, 500);
+}
+
+// Waiting Room Logic
+if (isWaitingRoom) {
+  window.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'TASK_COMPLETED') {
+      isPlaying = false;
+      isDragging = false;
+      clearInterval(timerInterval);
+      const modal = document.getElementById('waiting-room-modal');
+      if (modal) modal.style.display = 'flex';
+      
+      const btnFinish = document.getElementById('btn-wr-finish');
+      if (btnFinish) btnFinish.onclick = () => {
+        if (modal) modal.style.display = 'none';
+        isPlaying = true;
+        startTimer();
+      };
+      
+      const btnProceed = document.getElementById('btn-wr-proceed');
+      if (btnProceed) btnProceed.onclick = () => {
+        window.parent.postMessage({ type: 'PROCEED_TO_APP', clientId }, '*');
+      };
+    }
+  });
 }
