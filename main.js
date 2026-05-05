@@ -912,7 +912,16 @@ function levelComplete() {
   clearInterval(timerInterval);
   isDragging = false;
   
-  if (currentLevel === 3 || isCaptcha || isWaitingRoom) {
+  if (isWaitingRoom && window.autoProceedOnGameOver) {
+      window.parent.postMessage({ type: 'PROCEED_TO_APP', clientId }, '*');
+      return;
+  }
+  
+  if (isWaitingRoom && currentLevel === 3) {
+      currentLevel = 0; // Will become 1 in doTransition
+  }
+
+  if (currentLevel === 3 || isCaptcha) {
     gameOver(true);
   } else {
     doTransitionToNextLevel();
@@ -954,6 +963,25 @@ function gameOver(win) {
   isPlaying = false;
   isDragging = false;
   clearInterval(timerInterval);
+
+  if (isWaitingRoom && window.autoProceedOnGameOver) {
+      window.parent.postMessage({ type: 'PROCEED_TO_APP', clientId }, '*');
+      return;
+  }
+  
+  if (isWaitingRoom) {
+      // If they die before task completes, just restart them
+      setTimeout(() => {
+          currentLevel = 1;
+          timeRemaining = times[0];
+          totalSeedsCollected = 0;
+          generatePath(currentLevel);
+          draw();
+          isPlaying = true;
+          startTimer();
+      }, 1000);
+      return;
+  }
   
   gameOverModal.classList.remove('hidden');
   
@@ -992,22 +1020,6 @@ function gameOver(win) {
     standardBtns.style.display = 'none';
     carouselBtns.style.display = 'flex';
     embedBtns.style.display = 'none';
-  } else if (isWaitingRoom) {
-    standardBtns.style.display = 'none';
-    carouselBtns.style.display = 'none';
-    embedBtns.style.display = 'none';
-    let wrReturnBtn = document.getElementById('btn-wr-return-final');
-    if (!wrReturnBtn) {
-      wrReturnBtn = document.createElement('button');
-      wrReturnBtn.id = 'btn-wr-return-final';
-      wrReturnBtn.style = "background: #38bdf8; color: white; width: 100%; font-size: 1.3rem; padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 20px;";
-      wrReturnBtn.innerText = "➡️ Proceed to App";
-      wrReturnBtn.onclick = () => {
-        window.parent.postMessage({ type: 'PROCEED_TO_APP', clientId }, '*');
-      };
-      document.querySelector('#game-over-modal .modal-content').appendChild(wrReturnBtn);
-    }
-    wrReturnBtn.style.display = 'block';
   } else {
     standardBtns.style.display = 'flex';
     carouselBtns.style.display = 'none';
@@ -1157,6 +1169,7 @@ if (isWaitingRoom) {
       const btnFinish = document.getElementById('btn-wr-finish');
       if (btnFinish) btnFinish.onclick = () => {
         if (modal) modal.style.display = 'none';
+        window.autoProceedOnGameOver = true;
         isPlaying = true;
         startTimer();
       };
