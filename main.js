@@ -38,6 +38,8 @@ if (isCarousel && !playedGames.includes(CURRENT_GAME_ID)) {
 }
 if (isCarousel && typeof analytics !== 'undefined') logEvent(analytics, 'carousel_visit', { game_id: CURRENT_GAME_ID });
 if (isEmbed && typeof analytics !== 'undefined') logEvent(analytics, 'embed_visit', { publisher_domain: publisherDomain });
+if (isCaptcha && typeof analytics !== 'undefined') logEvent(analytics, 'captcha_visit', { client_id: clientId });
+if (isWaitingRoom && typeof analytics !== 'undefined') logEvent(analytics, 'waiting_room_visit', { client_id: clientId });
 
 window.getDailyCypher = function(gameIndex) {
     function mulberry32(a) {
@@ -990,6 +992,22 @@ function gameOver(win) {
     standardBtns.style.display = 'none';
     carouselBtns.style.display = 'flex';
     embedBtns.style.display = 'none';
+  } else if (isWaitingRoom) {
+    standardBtns.style.display = 'none';
+    carouselBtns.style.display = 'none';
+    embedBtns.style.display = 'none';
+    let wrReturnBtn = document.getElementById('btn-wr-return-final');
+    if (!wrReturnBtn) {
+      wrReturnBtn = document.createElement('button');
+      wrReturnBtn.id = 'btn-wr-return-final';
+      wrReturnBtn.style = "background: #38bdf8; color: white; width: 100%; font-size: 1.3rem; padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 20px;";
+      wrReturnBtn.innerText = "➡️ Proceed to App";
+      wrReturnBtn.onclick = () => {
+        window.parent.postMessage({ type: 'PROCEED_TO_APP', clientId }, '*');
+      };
+      document.querySelector('#game-over-modal .modal-content').appendChild(wrReturnBtn);
+    }
+    wrReturnBtn.style.display = 'block';
   } else {
     standardBtns.style.display = 'flex';
     carouselBtns.style.display = 'none';
