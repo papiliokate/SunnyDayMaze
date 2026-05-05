@@ -8,17 +8,14 @@ on:
 jobs:
   generate-video:
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
-
+          node-version: 'latest'
       - name: Randomize Video Format
         run: |
           FORMATS=("standard" "fail" "interactive" "glitch" "split")
@@ -26,25 +23,52 @@ jobs:
           echo "Selected Format: $SELECTED_FORMAT"
           echo "FORMAT=$SELECTED_FORMAT" >> $GITHUB_ENV
 
-      - name: Install system dependencies for Puppeteer & FFmpeg
+      - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg xvfb libgbm-dev libnss3 libatk-bridge2.0-0 libxcomposite1 libxrandr2 libpangocairo-1.0-0 libxshmfence1
-
-      - name: Install NPM packages
+          sudo apt-get install -y xvfb libgbm-dev ffmpeg
+      
+      - name: Install Node Dependencies
         run: npm ci
 
-      - name: Generate Video (with xvfb)
-        run: xvfb-run --auto-servernum node scripts/generate_video.js
+      - name: Generate Video
+        run: |
+          xvfb-run --auto-servernum --server-args="-screen 0 720x1280x24" node scripts/generate_video.js
 
-      - name: Build Application for Hosting
+      - name: Build Application
         run: npm run build
 
-      - name: Deploy to Firebase Hosting (Standalone App Endpoint)
-        run: npx firebase-tools deploy --only hosting:sunny-day-maze --project oops-games-hub --token "${{ secrets.FIREBASE_TOKEN }}"
+      - name: Deploy to Firebase Hosting
+        run: npx firebase-tools deploy --only hosting:sunny-day-maze --project go-rabbit-4af82 --token "${{ secrets.FIREBASE_TOKEN }}"
 
-      - name: Trigger Zapier Webhook
+      - name: Upload Video Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily_video
+          path: public/*.mp4
+          retention-days: 1
+
+      - name: Trigger Zapier Distribution
+        if: success()
         run: |
+          CAPTIONS=(
+            "Can you escape the sunflower maze? 🌻 Play free at oops-games-hub.web.app"
+            "Only 1% of players memorize this path perfectly! Try it free at oops-games-hub.web.app 🍎"
+            "Today's Sunny Day Maze Challenge! ☀️ Are you smart enough? Play free at oops-games-hub.web.app"
+          )
+          YOUTUBE_TITLES=(
+            "Can You Escape The Maze? (#Shorts)"
+            "Fastest Way To Solve Today's Maze Puzzle (#Gaming)"
+            "Daily Sunflower Maze Challenge (#BrainTeaser)"
+          )
+          R_INDEX=$(( $RANDOM % 3 ))
+          CAPTION="${CAPTIONS[$R_INDEX]} #BrainTraining #DailyPuzzle #MazeGame #"$(date +'%Y%m%d')
+          YT_TITLE="${YOUTUBE_TITLES[$R_INDEX]}"
+          TS=$(date +'%s')
+          
+          # Find the generated mp4 (daily_video.mp4)
+          VIDEO_FILE=$(basename $(ls public/*.mp4 | head -n 1))
+          
           curl --fail --silent --show-error -X POST -H "Content-Type: application/json" \
-          -d "{\"video_url\": \"https://sunny-day-maze.web.app/daily_video.mp4\", \"text\": \"Sunny Day Puzzle from Oops-games #BrainTraining #DailyPuzzle #SunnyDayMaze\", \"youtube_title\": \"Sunny Day Puzzle (#Gaming)\", \"target_channel\": \"all\"}" \
+          -d "{\"video_url\": \"https://sunny-day-maze.web.app/$VIDEO_FILE?t=$TS\", \"text\": \"$CAPTION\", \"youtube_title\": \"$YT_TITLE\", \"target_channel\": \"all\"}" \
           https://hooks.zapier.com/hooks/catch/27231889/ujm5mjh/ || exit 1
