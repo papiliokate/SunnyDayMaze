@@ -1146,7 +1146,7 @@ requestAnimationFrame(loop);
 // Button Event Listeners for UI
 document.getElementById('btn-hub')?.addEventListener('click', () => {
     if (analytics) logEvent(analytics, 'hub_return_click');
-    window.location.href = 'https://oops-games-hub.web.app/';
+    window.location.href = 'https://oops-games.com/';
 });
 
 document.getElementById('btn-share')?.addEventListener('click', () => {
@@ -1160,22 +1160,22 @@ document.getElementById('btn-share')?.addEventListener('click', () => {
 
 document.getElementById('btn-embed-hook')?.addEventListener('click', () => {
     if (analytics) logEvent(analytics, 'embed_hook_clicked');
-    window.open('https://oops-games-hub.web.app/', '_blank');
+    window.open('https://oops-games.com/', '_blank');
 });
 
 const advanceCarousel = async () => {
     try {
-        const res = await fetch('https://oops-games-hub.web.app/carousel_config.json');
+        const res = await fetch('https://oops-games.com/carousel_config.json');
         const configList = await res.json();
         const unplayed = configList.filter(g => !playedGames.includes(g.id));
         if (unplayed.length > 0) {
             const nextGame = unplayed[Math.floor(Math.random() * unplayed.length)];
             window.location.href = `${nextGame.url}?carousel=true&played=${playedGames.join(',')}`;
         } else {
-            window.location.href = 'https://oops-games-hub.web.app/';
+            window.location.href = 'https://oops-games.com/';
         }
     } catch(e) {
-        window.location.href = 'https://oops-games-hub.web.app/';
+        window.location.href = 'https://oops-games.com/';
     }
 };
 
