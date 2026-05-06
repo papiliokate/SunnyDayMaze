@@ -2,10 +2,11 @@ import puppeteer from 'puppeteer';
 import { PuppeteerScreenRecorder } from 'puppeteer-screen-recorder';
 import fs from 'fs';
 import path from 'path';
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
-import * as googleTTS from 'google-tts-api';
+import { EdgeTTS } from 'node-edge-tts';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
@@ -46,32 +47,13 @@ async function main() {
     
     const ttsPools = {
         standard: [
-            "Can you escape the sunflower maze? Watch closely, then click the link in our bio to play all our games for free!",
-            "Here is today's puzzle. Pay attention, and head to our profile to play for free!",
-            "Let's see if you can solve this one. Give it a try at the link in our bio!",
-            "A new day, a new puzzle. Check out the link in our bio to play yourself!",
-            "Do you have what it takes to beat today's challenge? Play free from our profile!"
+            "Can you guess today's quote? Watch closely, then click the link in our bio to play all our games for free!"
         ],
         fail: [
-            "This maze is genuinely so difficult. Even the bot got stuck! Think you can do better? Try it at the link in our bio!",
-            "I can't believe the AI went the wrong way! Can you solve it? Link in bio to play.",
-            "Wow, this one is tough. Even the computer got lost. Prove you're better via our profile link!",
-            "Absolute disaster of a run! Think you can do better? Try the challenge for free at the link in our bio.",
-            "It missed the exit entirely! Can you beat this level? Play for free via the link in our profile."
+            "This quote is genuinely so difficult. Even the bot is struggling! Think you can do better? Try it at the link in our bio!"
         ],
         interactive: [
-            "Only 1% of players memorize the path well enough to find the exit. Which way should I go? Play for free via the link in our profile!",
-            "Which path leads to the center? Let us know in the comments and play at the link in our bio!",
-            "Can you spot the final turn? Test your skills for free via the link in our profile.",
-            "You only have one chance to get this right. Left or right? Link in bio to play!",
-            "Are you smart enough to escape the maze? Play the full game for free using the link in our bio."
-        ],
-        glitch: [
-            "The system is glitching! Can you solve the maze before it crashes? Link in bio to play.",
-            "Warning: Maze corrupted. Help me find the center! Play at the link in our bio.",
-            "Everything is glitching out! Can you escape? Try the challenge for free at the link in our bio.",
-            "System error... maze instability detected. Prove you're better via our profile link!",
-            "The sunflower is acting strange! Can you beat this level? Play for free via the link in our profile."
+            "Only 1% of players memorize the board well enough to find this final match. Which one is it? Play for free via the link in our profile!"
         ]
     };
 
@@ -86,23 +68,52 @@ async function main() {
         pool = ttsPools.interactive;
     } else if (FORMAT === 'glitch') {
         urlParam = 'glitch';
-        pool = ttsPools.glitch;
+        pool = ttsPools.standard;
     } else if (FORMAT === 'split') {
         urlParam = 'split';
     }
 
-    const ttsText = pool[Math.floor(Math.random() * pool.length)];
+    let ttsText = pool[Math.floor(Math.random() * pool.length)];
 
-    console.log("Generating TTS audio...");
+    console.log("Generating dynamic script with Gemini...");
     try {
-        const ttsUrl = googleTTS.getAudioUrl(ttsText, {
-            lang: 'en',
-            slow: false,
-            host: 'https://translate.google.com',
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) throw new Error("GEMINI_API_KEY is not set.");
+        
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+        const gameDirName = path.basename(path.resolve('.'));
+        const gameName = gameDirName.replace(/([A-Z])/g, ' $1').trim(); // e.g., "She Sells Sea Shells"
+
+        const prompt = `Write a short, engaging, 1-to-2 sentence hook for a TikTok video about a puzzle game called ${gameName}. The video format is "${FORMAT}".
+        Make it sound extremely natural and slightly dramatic, like a real person reacting to the game. 
+        Don't use hashtags or emojis.
+        If the format is "fail", mock the gameplay and challenge the viewer. 
+        If the format is "interactive", ask the viewer to help find the solution. 
+        If the format is anything else (like "standard", "glitch", "speedrun", etc.), just excitedly encourage the viewer to play the game based on the name.`;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const generatedText = response.text().trim().replace(/["']/g, '');
+        if (generatedText) {
+            ttsText = generatedText;
+            console.log("Dynamic script generated:", ttsText);
+        } else {
+            throw new Error("Empty response from Gemini.");
+        }
+    } catch (e) {
+        console.warn("Failed to generate dynamic script with Gemini, falling back to static pool.", e.message);
+    }
+
+    console.log("Generating TTS audio with Edge TTS...");
+    try {
+        const tts = new EdgeTTS({
+            voice: 'en-US-ChristopherNeural',
+            lang: 'en-US',
+            outputFormat: 'audio-24khz-48kbitrate-mono-mp3'
         });
-        const ttsResponse = await fetch(ttsUrl);
-        const ttsBuffer = await ttsResponse.arrayBuffer();
-        fs.writeFileSync(TTS_PATH, Buffer.from(ttsBuffer));
+        await tts.ttsPromise(ttsText, TTS_PATH);
         console.log("TTS audio successfully generated.");
     } catch (err) {
         console.warn("Failed to generate TTS audio, continuing without it.", err);
@@ -159,20 +170,30 @@ async function main() {
     await recorder.start(RAW_VIDEO);
 
     let actualDuration = 60;
+    
+    let ttsDuration = 10; // Default fallback
+    if (!isSplit) {
+        try {
+            if (fs.statSync(TTS_PATH).size > 0) {
+                const probe = execSync(`"${ffmpegInstaller.path}" -i "${TTS_PATH}" 2>&1`, {encoding: 'utf8'});
+                const match = probe.match(/Duration: (\d+):(\d+):(\d+\.\d+)/);
+                if (match) {
+                   ttsDuration = parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + Math.ceil(parseFloat(match[3]));
+                }
+            }
+        } catch(e) {}
+    }
 
-    console.log("Recording... Waiting for game completion.");
+    console.log("Recording... Waiting for duration to elapse.");
     
     if (isSplit) {
         actualDuration = Math.floor(Math.random() * (25 - 15 + 1)) + 15;
         console.log(`Split format selected. Recording for exactly ${actualDuration} seconds...`);
         await sleep(actualDuration * 1000);
     } else {
-        let gameWon = false;
-        for (let i = 0; i < 240; i++) { 
-            gameWon = await page.evaluate(() => window._VIDEO_RECORDING_DONE === true);
-            if (gameWon) break;
-            await sleep(500);
-        }
+        actualDuration = ttsDuration + 2; // Adding a 2-second pad so it doesn't abruptly cut off the millisecond the speech ends
+        console.log(`Standard format selected. Recording for exactly ${actualDuration} seconds (TTS duration + padding)...`);
+        await sleep(actualDuration * 1000);
     }
 
     console.log("Gameplay finished. Saving video...");
@@ -187,7 +208,7 @@ async function main() {
         let duration = actualDuration; // Set by recorder logic
         if (!isSplit) {
             try {
-                const probe = require('child_process').execSync(`"${ffmpegInstaller.path}" -i "${RAW_VIDEO}" 2>&1`, {encoding: 'utf8'});
+                const probe = execSync(`"${ffmpegInstaller.path}" -i "${RAW_VIDEO}" 2>&1`, {encoding: 'utf8'});
                 const match = probe.match(/Duration: (\d+):(\d+):(\d+\.\d+)/);
                 if (match) {
                    duration = parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + Math.ceil(parseFloat(match[3]));

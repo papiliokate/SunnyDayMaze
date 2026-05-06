@@ -1,0 +1,31 @@
+[debug] [2026-05-06T13:38:12.862Z] ----------------------------------------------------------------------
+[debug] [2026-05-06T13:38:12.863Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\papil\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\firebase-tools\lib\bin\firebase.js deploy --only hosting:sunny-day-maze --project oops-games-hub
+[debug] [2026-05-06T13:38:12.864Z] CLI Version:   15.16.0
+[debug] [2026-05-06T13:38:12.864Z] Platform:      win32
+[debug] [2026-05-06T13:38:12.864Z] Node Version:  v25.9.0
+[debug] [2026-05-06T13:38:12.864Z] Time:          Wed May 06 2026 08:38:12 GMT-0500 (Central Daylight Time)
+[debug] [2026-05-06T13:38:12.864Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-05-06T13:38:13.644Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-05-06T13:38:13.644Z] > authorizing via signed-in user (papiliokate@gmail.com)
+[debug] [2026-05-06T13:38:13.644Z] [iam] checking project oops-games-hub for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2026-05-06T13:38:13.645Z] Checked if tokens are valid: true, expires at: 1778078201583
+[debug] [2026-05-06T13:38:13.645Z] Checked if tokens are valid: true, expires at: 1778078201583
+[debug] [2026-05-06T13:38:13.645Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/oops-games-hub:testIamPermissions [none]
+[debug] [2026-05-06T13:38:13.646Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/oops-games-hub:testIamPermissions  x-goog-user-project=oops-games-hub
+[debug] [2026-05-06T13:38:13.646Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/oops-games-hub:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-05-06T13:38:13.932Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/oops-games-hub:testIamPermissions 400
+[debug] [2026-05-06T13:38:13.932Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/oops-games-hub:testIamPermissions {"error":{"code":400,"message":"Project 'projects/oops-games-hub' not found or deleted.","status":"INVALID_ARGUMENT","details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"USER_PROJECT_DENIED","domain":"googleapis.com","metadata":{"containerInfo":"projects/oops-games-hub","consumer":"projects/oops-games-hub","service":"cloudresourcemanager.googleapis.com"}}]}}
+[debug] [2026-05-06T13:38:13.932Z] [iam] error while checking permissions, command may fail: Request to https://cloudresourcemanager.googleapis.com/v1/projects/oops-games-hub:testIamPermissions had HTTP Error: 400, Project 'projects/oops-games-hub' not found or deleted.
+[debug] [2026-05-06T13:38:13.933Z] Checked if tokens are valid: true, expires at: 1778078201583
+[debug] [2026-05-06T13:38:13.933Z] Checked if tokens are valid: true, expires at: 1778078201583
+[debug] [2026-05-06T13:38:13.933Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/oops-games-hub [none]
+[debug] [2026-05-06T13:38:14.335Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/oops-games-hub 403
+[debug] [2026-05-06T13:38:14.336Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/oops-games-hub {"error":{"code":403,"message":"The caller does not have permission","status":"PERMISSION_DENIED"}}
+[debug] [2026-05-06T13:38:14.336Z] Request to https://firebase.googleapis.com/v1beta1/projects/oops-games-hub had HTTP Error: 403, The caller does not have permission
+[debug] [2026-05-06T13:38:14.502Z] FirebaseError: Request to https://firebase.googleapis.com/v1beta1/projects/oops-games-hub had HTTP Error: 403, The caller does not have permission
+    at responseToError (C:\Users\papil\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\firebase-tools\lib\responseToError.js:53:12)
+    at RetryOperation._fn (C:\Users\papil\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\firebase-tools\lib\apiv2.js:333:77)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+[error] 
+[error] Error: Failed to get Firebase project oops-games-hub. Please make sure the project exists and your account has permission to access it.
