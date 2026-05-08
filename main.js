@@ -110,8 +110,16 @@ let scale = 1;
 let totalSeedsCollected = 0;
 
 // --- Audio System ---
-const AudioContext = window.AudioContext || window.webkitAudioContext;
 let audioCtx = null;
+let mediaDest = null;
+if (autoplayMode) {
+    audioCtx = window.parent.audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    mediaDest = window.parent.mediaDest || audioCtx.createMediaStreamDestination();
+} else {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+window.audioCtx = audioCtx;
+window.mediaDest = mediaDest;
 
 function initAudio() {
   if (!audioCtx) {
@@ -126,6 +134,7 @@ function playSound(type) {
   
   osc.connect(gainNode);
   gainNode.connect(audioCtx.destination);
+  if (window.mediaDest) gainNode.connect(window.mediaDest);
   
   const now = audioCtx.currentTime;
   
@@ -179,6 +188,7 @@ function playSound(type) {
     noiseSource.connect(filter);
     filter.connect(gainNode);
     gainNode.connect(audioCtx.destination);
+    if (window.mediaDest) gainNode.connect(window.mediaDest);
     
     // Soft attack eliminates the harsh "tick", and randomized gain adds variability
     const peakGain = 0.08 + Math.random() * 0.04;
@@ -370,20 +380,7 @@ class PolarMaze {
       }
     }
 
-    if (isCaptcha) {
-      for (let r = 1; r <= this.rings; r++) {
-        for (let cell of this.cells[r]) {
-          if (cell.links.size === 1) {
-            let unlinkedNeighbors = cell.neighbors.filter(n => !cell.links.has(n));
-            if (unlinkedNeighbors.length > 0) {
-              let neighbor = unlinkedNeighbors[Math.floor(Math.random() * unlinkedNeighbors.length)];
-              cell.links.add(neighbor);
-              neighbor.links.add(cell);
-            }
-          }
-        }
-      }
-    }
+    // Removed dead-end clearing logic for isCaptcha to keep the puzzle difficult
 
     for (let r = 1; r <= this.rings; r++) {
       for (let cell of this.cells[r]) {
@@ -458,7 +455,7 @@ let autoplayIndex = 0;
 function generatePath(level) {
 
   let numRings = 4 + level * 2; 
-  if (isCaptcha) numRings = 2;
+  if (isCaptcha) numRings = 3;
   maze = new PolarMaze(numRings);
   
   let startR = (numRings + 0.5) * TRACK_WIDTH;
@@ -479,6 +476,7 @@ function generatePath(level) {
 }
 
 function resolveCollision(player, walls) {
+  let colRadius = autoplayMode ? 3 : player.radius;
   let collided = false;
   for (let w of walls) {
     if (w.type === 'line') {
@@ -492,8 +490,8 @@ function resolveCollision(player, walls) {
       let distX = player.x - closestX;
       let distY = player.y - closestY;
       let dist = Math.hypot(distX, distY);
-      if (dist < player.radius) {
-        let pushOut = player.radius - dist;
+      if (dist < colRadius) {
+        let pushOut = colRadius - dist;
         if (dist === 0) { distX = 1; distY = 0; dist = 1; }
         player.x += (distX / dist) * pushOut;
         player.y += (distY / dist) * pushOut;
@@ -528,8 +526,8 @@ function resolveCollision(player, walls) {
       let distX = player.x - closestX;
       let distY = player.y - closestY;
       let dist = Math.hypot(distX, distY);
-      if (dist < player.radius) {
-        let pushOut = player.radius - dist;
+      if (dist < colRadius) {
+        let pushOut = colRadius - dist;
         if (dist === 0) { distX = px; distY = py; dist = Math.hypot(px, py); }
         player.x += (distX / dist) * pushOut;
         player.y += (distY / dist) * pushOut;
@@ -801,6 +799,8 @@ let captchaStartTime = 0;
 let PLAYER_SPEED = 6;
 if (autoplayMode === 'split') {
     PLAYER_SPEED = 15; // Zoom through the maze to solve it quickly within the 15-25s time limit!
+} else if (isCaptcha) {
+    PLAYER_SPEED = 2.5; // Slow down so viewers can see what's happening
 }
 let lastScurryTime = 0;
 let stuckFrames = 0;
@@ -1099,9 +1099,17 @@ function initGame() {
   container.style.opacity = '1';
   
   generatePath(currentLevel);
-  isPlaying = true;
-  isDragging = false;
-  startTimer();
+  if (isCaptcha) {
+      setTimeout(() => {
+          isPlaying = true;
+          isDragging = false;
+          startTimer();
+      }, 1500);
+  } else {
+      isPlaying = true;
+      isDragging = false;
+      startTimer();
+  }
 }
 
 startBtn.addEventListener('click', initGame);

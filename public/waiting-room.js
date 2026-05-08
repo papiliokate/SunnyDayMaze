@@ -1,6 +1,16 @@
 // waiting-room.js
 // Lightweight SDK for Oops-Games Waiting Room
 
+let __oopsGamesBaseUrl = 'https://oops-games.com/sunny-day-maze/';
+try {
+  if (document.currentScript && document.currentScript.src && document.currentScript.src.includes('waiting-room.js')) {
+    const scriptUrl = new URL(document.currentScript.src);
+    __oopsGamesBaseUrl = scriptUrl.origin + scriptUrl.pathname.substring(0, scriptUrl.pathname.lastIndexOf('/') + 1);
+  }
+} catch (e) {
+  console.warn('OopsGames: Could not resolve script URL, falling back to production URL.');
+}
+
 const OopsGames = {
   startWaitingRoom: function(config) {
     const container = document.getElementById(config.containerId);
@@ -12,13 +22,10 @@ const OopsGames = {
     const clientId = config.clientId || 'unknown';
     const iframe = document.createElement('iframe');
     
-    // In production this would point to the live domain, but for testing we can use a relative path if needed
-    // However, the test page uses a relative path to index.html anyway.
-    // For the SDK, let's use the local path if window.location.hostname is localhost
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    const baseUrl = isLocal ? './index.html' : 'https://oops-games.com/sunny-day-maze/';
+    // Automatically point to the index.html located next to this script
+    const targetUrl = __oopsGamesBaseUrl.endsWith('/') ? __oopsGamesBaseUrl : __oopsGamesBaseUrl + '/';
     
-    iframe.src = `${baseUrl}?mode=waiting-room&clientId=${encodeURIComponent(clientId)}`;
+    iframe.src = `${targetUrl}?mode=waiting-room&clientId=${encodeURIComponent(clientId)}`;
     iframe.style.width = '100%';
     iframe.style.height = '100%';
     iframe.style.border = 'none';
