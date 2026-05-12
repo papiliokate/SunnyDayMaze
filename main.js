@@ -18,10 +18,7 @@ try {
 
 const urlParams = new URLSearchParams(window.location.search);
 const isCarousel = urlParams.get('carousel') === 'true';
-const isEmbed = false;
-const isWaitingRoom = false;
-const isCaptcha = false;
-const clientId = urlParams.get('clientId') || 'unknown';
+
 const autoplayMode = urlParams.get('autoplay');
 let playedGames = urlParams.get('played') ? urlParams.get('played').split(',').filter(Boolean) : [];
 const CURRENT_GAME_ID = 'JM';
@@ -37,9 +34,7 @@ if (isCarousel && !playedGames.includes(CURRENT_GAME_ID)) {
     playedGames.push(CURRENT_GAME_ID);
 }
 if (isCarousel && typeof analytics !== 'undefined') logEvent(analytics, 'carousel_visit', { game_id: CURRENT_GAME_ID });
-if (isEmbed && typeof analytics !== 'undefined') logEvent(analytics, 'embed_visit', { publisher_domain: publisherDomain });
-if (isCaptcha && typeof analytics !== 'undefined') logEvent(analytics, 'captcha_visit', { client_id: clientId });
-if (isWaitingRoom && typeof analytics !== 'undefined') logEvent(analytics, 'waiting_room_visit', { client_id: clientId });
+
 
 window.getDailyCypher = function(gameIndex) {
     function mulberry32(a) {
@@ -101,10 +96,7 @@ const gameOverModal = document.getElementById('game-over-modal');
 const endTitle = document.getElementById('end-title');
 const endStats = document.getElementById('end-stats');
 
-if (isCaptcha) {
-    startScreen.style.display = 'none';
-    document.body.classList.add('captcha-mode');
-}
+
 
 let scale = 1;
 let totalSeedsCollected = 0;
@@ -799,8 +791,6 @@ let captchaStartTime = 0;
 let PLAYER_SPEED = 6;
 if (autoplayMode === 'split') {
     PLAYER_SPEED = 15; // Zoom through the maze to solve it quickly within the 15-25s time limit!
-} else if (isCaptcha) {
-    PLAYER_SPEED = 2.5; // Slow down so viewers can see what's happening
 }
 let lastScurryTime = 0;
 let stuckFrames = 0;
@@ -810,18 +800,18 @@ function handleInputDown(e) {
   if (!isPlaying) return;
   isDragging = true;
   targetInput = getEventPoint(e);
-  if (isCaptcha) telemetry.push({ t: 'down', x: targetInput.x, y: targetInput.y, ts: Date.now() });
+
 }
 
 function handleInputUp(e) {
   isDragging = false;
-  if (isCaptcha) telemetry.push({ t: 'up', ts: Date.now() });
+
 }
 
 function handleInputMove(e) {
   if (!isPlaying || !isDragging) return;
   targetInput = getEventPoint(e);
-  if (isCaptcha) telemetry.push({ t: 'move', x: targetInput.x, y: targetInput.y, ts: Date.now() });
+
 }
 
 function loop() {
@@ -933,16 +923,7 @@ function levelComplete() {
   clearInterval(timerInterval);
   isDragging = false;
   
-  if (isWaitingRoom && window.autoProceedOnGameOver) {
-      window.parent.postMessage({ type: 'PROCEED_TO_APP', clientId }, '*');
-      return;
-  }
-  
-  if (isWaitingRoom && currentLevel === 3) {
-      currentLevel = 0; // Will become 1 in doTransition
-  }
-
-  if (currentLevel === 3 || isCaptcha) {
+  if (currentLevel === 3) {
     gameOver(true);
   } else {
     doTransitionToNextLevel();
@@ -985,35 +966,7 @@ function gameOver(win) {
   isDragging = false;
   clearInterval(timerInterval);
 
-  if (isWaitingRoom && window.autoProceedOnGameOver) {
-      window.parent.postMessage({ type: 'PROCEED_TO_APP', clientId }, '*');
-      return;
-  }
-  
-  if (isWaitingRoom) {
-      // If they die before task completes, just restart them
-      setTimeout(() => {
-          currentLevel = 1;
-          timeRemaining = times[0];
-          totalSeedsCollected = 0;
-          generatePath(currentLevel);
-          draw();
-          isPlaying = true;
-          startTimer();
-      }, 1000);
-      return;
-  }
-  
-  if (isCaptcha && win) {
-    const payload = {
-      type: 'oops_captcha_solved',
-      clientId,
-      solveTimeMs: Date.now() - captchaStartTime,
-      telemetry
-    };
-    window.parent.postMessage(payload, '*');
-    return; // Don't show the modal if they win the captcha
-  }
+
 
   gameOverModal.classList.remove('hidden');
   
@@ -1032,19 +985,7 @@ function gameOver(win) {
   const embedBtns = document.getElementById('embed-buttons');
   const captchaBtns = document.getElementById('captcha-buttons');
   
-  if (isCaptcha && !win) {
-    standardBtns.style.display = 'none';
-    carouselBtns.style.display = 'none';
-    embedBtns.style.display = 'none';
-    if (captchaBtns) {
-        captchaBtns.style.display = 'flex';
-        captchaBtns.classList.remove('hidden');
-    }
-  } else if (isEmbed) {
-    standardBtns.style.display = 'none';
-    carouselBtns.style.display = 'none';
-    embedBtns.style.display = 'flex';
-  } else if (isCarousel) {
+  if (isCarousel) {
     standardBtns.style.display = 'none';
     carouselBtns.style.display = 'flex';
     embedBtns.style.display = 'none';
@@ -1064,7 +1005,6 @@ function gameOver(win) {
 
   if (typeof analytics !== 'undefined') {
       let eventParams = { win: win, timeRemaining: timeRemaining, seeds: totalSeedsCollected };
-      if (isEmbed) eventParams.publisher_domain = publisherDomain;
       logEvent(analytics, 'game_over', eventParams);
   }
 
@@ -1082,34 +1022,16 @@ function initGame() {
   updateTimeDisplay();
   startScreen.classList.add('hidden');
   
-  if (isCaptcha) {
-      const levelCont = document.getElementById('ui-level-container');
-      const seedsCont = document.getElementById('ui-seeds-container');
-      const timeCont = document.getElementById('ui-time-container');
-      if (levelCont) levelCont.style.display = 'none';
-      if (seedsCont) seedsCont.style.display = 'none';
-      if (timeCont) timeCont.style.display = 'none';
-      timeRemaining = 30; // Override initial time
-      captchaStartTime = Date.now();
-      telemetry = [];
-  }
+
   
   container.style.transition = 'none';
   container.style.transform = `scale(${scale})`;
   container.style.opacity = '1';
   
   generatePath(currentLevel);
-  if (isCaptcha) {
-      setTimeout(() => {
-          isPlaying = true;
-          isDragging = false;
-          startTimer();
-      }, 1500);
-  } else {
-      isPlaying = true;
-      isDragging = false;
-      startTimer();
-  }
+  isPlaying = true;
+  isDragging = false;
+  startTimer();
 }
 
 startBtn.addEventListener('click', initGame);
@@ -1166,11 +1088,6 @@ document.getElementById('btn-share')?.addEventListener('click', () => {
     }
 });
 
-document.getElementById('btn-embed-hook')?.addEventListener('click', () => {
-    if (analytics) logEvent(analytics, 'embed_hook_clicked');
-    window.open('https://oops-games.com/', '_blank');
-});
-
 const advanceCarousel = async () => {
     try {
         const configList = [
@@ -1197,49 +1114,9 @@ const advanceCarousel = async () => {
 
 
 
-document.getElementById('btn-restart-captcha')?.addEventListener('click', () => {
-    gameOverModal.classList.add('hidden');
-    initGame();
-});
-
-if (autoplayMode || isCaptcha) {
-    if (isCaptcha) {
+if (autoplayMode) {
+    setTimeout(() => {
         initGame();
-    } else {
-        setTimeout(() => {
-            initGame();
-        }, 500);
-    }
+    }, 500);
 }
 
-// Waiting Room Logic
-if (isWaitingRoom) {
-  window.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'TASK_COMPLETED') {
-      isPlaying = false;
-      isDragging = false;
-      clearInterval(timerInterval);
-      const modal = document.getElementById('waiting-room-modal');
-      if (modal) {
-        modal.classList.remove('hidden');
-        modal.style.display = 'flex';
-      }
-      
-      const btnFinish = document.getElementById('btn-wr-finish');
-      if (btnFinish) btnFinish.onclick = () => {
-        if (modal) {
-          modal.classList.add('hidden');
-          modal.style.display = 'none';
-        }
-        window.autoProceedOnGameOver = true;
-        isPlaying = true;
-        startTimer();
-      };
-      
-      const btnProceed = document.getElementById('btn-wr-proceed');
-      if (btnProceed) btnProceed.onclick = () => {
-        window.parent.postMessage({ type: 'PROCEED_TO_APP', clientId }, '*');
-      };
-    }
-  });
-}
