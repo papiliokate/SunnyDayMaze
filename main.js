@@ -17,7 +17,7 @@ try {
 } catch(e) {}
 
 const urlParams = new URLSearchParams(window.location.search);
-const isCarousel = urlParams.get('carousel') === 'true';
+const isCarousel = false;
 
 const autoplayMode = urlParams.get('autoplay');
 let playedGames = urlParams.get('played') ? urlParams.get('played').split(',').filter(Boolean) : [];
@@ -987,11 +987,11 @@ function gameOver(win) {
   
   if (isCarousel) {
     standardBtns.style.display = 'none';
-    carouselBtns.style.display = 'flex';
+    carouselBtns?.style.display = 'flex';
     embedBtns.style.display = 'none';
   } else {
     standardBtns.style.display = 'flex';
-    carouselBtns.style.display = 'none';
+    carouselBtns?.style.display = 'none';
     embedBtns.style.display = 'none';
   }
 
