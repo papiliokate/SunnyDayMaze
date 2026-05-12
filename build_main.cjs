@@ -2,8 +2,7 @@ const fs = require('fs');
 let code = fs.readFileSync('main.js', 'utf8');
 
 // 1. Add top imports and params
-const topCode = `import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
-import { getAnalytics, logEvent } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-analytics.js";
+const topCode = `import { initializeApp, getAnalytics, logEvent } from "./analytics_wrapper.js";
 
 let analytics;
 try {

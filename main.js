@@ -1,5 +1,4 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
-import { getAnalytics, logEvent } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-analytics.js";
+import { initializeApp, getAnalytics, logEvent } from "./analytics_wrapper.js";
 
 let analytics;
 try {
@@ -14,13 +13,14 @@ try {
   };
   const app = initializeApp(firebaseConfig);
   analytics = getAnalytics(app);
+  logEvent(analytics, 'custom_session_start');
 } catch(e) {}
 
 const urlParams = new URLSearchParams(window.location.search);
 const isCarousel = urlParams.get('carousel') === 'true';
-const isEmbed = urlParams.get('mode') === 'embed';
-const isWaitingRoom = urlParams.get('mode') === 'waiting-room';
-const isCaptcha = urlParams.get('mode') === 'captcha';
+const isEmbed = false;
+const isWaitingRoom = false;
+const isCaptcha = false;
 const clientId = urlParams.get('clientId') || 'unknown';
 const autoplayMode = urlParams.get('autoplay');
 let playedGames = urlParams.get('played') ? urlParams.get('played').split(',').filter(Boolean) : [];
@@ -1173,8 +1173,16 @@ document.getElementById('btn-embed-hook')?.addEventListener('click', () => {
 
 const advanceCarousel = async () => {
     try {
-        const res = await fetch('https://oops-games.com/carousel_config.json');
-        const configList = await res.json();
+        const configList = [
+                { "id": "GR", "url": "/go-rabbit" },
+                { "id": "SS", "url": "/she-sells-sea-shells" },
+                { "id": "ST", "url": "/smack-that-donkey" },
+                { "id": "OG", "url": "/o-gox" },
+                { "id": "BB", "url": "/budbud" },
+                { "id": "LW", "url": "/lightning-words" },
+                { "id": "NIM", "url": "/nomisekili" },
+                { "id": "SDM", "url": "/sunny-day-maze" }
+            ];
         const unplayed = configList.filter(g => !playedGames.includes(g.id));
         if (unplayed.length > 0) {
             const nextGame = unplayed[Math.floor(Math.random() * unplayed.length)];
@@ -1187,7 +1195,7 @@ const advanceCarousel = async () => {
     }
 };
 
-document.getElementById('btn-next')?.addEventListener('click', advanceCarousel);
+
 
 document.getElementById('btn-restart-captcha')?.addEventListener('click', () => {
     gameOverModal.classList.add('hidden');

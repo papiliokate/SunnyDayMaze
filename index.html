@@ -4,6 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Fun Daily Maze Game | Oops-Games</title>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('mode') === 'captcha' || params.get('mode') === 'embed' || params.get('client_id')) {
+        window.location.replace('./conversion.html' + window.location.search);
+    }
+  </script>
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
@@ -12,7 +18,7 @@
     <div id="ui-layer">
       <span id="ui-level-container">Level <span id="level-num">1</span>/3</span>
       <span id="ui-seeds-container" style="font-weight:bold; color: #fde047; text-shadow: 1px 1px 2px #b45309;">Seeds: <span id="seed-val">0</span></span>
-      <span id="ui-time-container">Time: <span id="time-val">20.0</span>s</span>
+      <span id="ui-time-container">Time: <span id="time-val">20.0</span>s</span><button id="header-carousel-next" class="btn-header" style="pointer-events: auto !important; display: none; background: linear-gradient(135deg, #00f0ff, #0055ff); color: white; border: none; cursor: pointer; font-weight: bold; padding: 5px 10px; border-radius: 12px; margin-left: 10px;">?? Next Game</button>
     </div>
     <div id="start-screen">
       <h1 id="start-title">Sunny Day Maze</h1>
@@ -31,17 +37,7 @@
       </div>
     </div>
 
-    <!-- Waiting Room Intercept Modal -->
-    <div id="waiting-room-modal" class="hidden" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; box-sizing: border-box;">
-      <div style="background: #1e293b; padding: 30px; border-radius: 16px; border: 2px solid #38bdf8; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
-        <h2 style="color: #f8fafc; font-family: 'Nunito', sans-serif; margin-top: 0; margin-bottom: 10px;">Task Complete!</h2>
-        <p style="color: #94a3b8; font-size: 1.1rem; margin-bottom: 25px;">Your background task has finished. Would you like to complete this level or proceed to the app?</p>
-        <div style="display: flex; flex-direction: column; gap: 15px;">
-          <button id="btn-wr-proceed" style="background: #38bdf8; color: white; padding: 15px; font-size: 1.2rem; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">➡️ Proceed to App</button>
-          <button id="btn-wr-finish" style="background: transparent; color: #38bdf8; padding: 10px; font-size: 1rem; border: 2px solid #38bdf8; border-radius: 8px; font-weight: bold; cursor: pointer;">Finish Level First</button>
-        </div>
-      </div>
-    </div>
+
 
     <!-- Standard Victory/Loss Modal -->
     <div id="game-over-modal" class="hidden">
@@ -56,23 +52,19 @@
         </div>
 
         <div id="carousel-buttons" class="hidden" style="display: none; flex-direction: column; gap: 10px; margin-top: 20px;">
-          <button id="btn-next" style="padding: 15px; font-size: 1.1rem; background: var(--accent); border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">➡️ Play the next game</button>
+          <button id="carousel-play-next" style="padding: 15px; font-size: 1.1rem; background: var(--accent); border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">➡️ Play the next game</button>
           <button id="btn-share-carousel" class="hidden" style="display: none; padding: 15px; font-size: 1.1rem; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">📤 Share for another ride</button>
         </div>
 
-        <div id="embed-buttons" class="hidden" style="display: none; flex-direction: column; gap: 10px; margin-top: 20px;">
-          <p style="font-size: 1.1rem; margin-bottom: 10px; color: #f8fafc; font-weight: bold;">You survived Level 3! Only 4% of players make it this far.</p>
-          <button id="btn-embed-hook" style="background: #e91e63; color: white; width: 100%; font-size: 1.3rem; padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">🚀 Play Full Game on Oops-Games</button>
-        </div>
 
-        <div id="captcha-buttons" class="hidden" style="display: none; flex-direction: column; gap: 10px; margin-top: 40px;">
-          <button id="btn-restart-captcha" style="padding: 25px 40px; font-size: 2rem; background: #eab308; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(234, 179, 8, 0.4);">🔄 Try Again</button>
-        </div>
       </div>
     </div>
 
   </div>
   <script src="/streak_manager.js"></script>
   <script type="module" src="./main.js"></script>
+  <script src="/carousel_manager.js"></script>
 </body>
 </html>
+
+
