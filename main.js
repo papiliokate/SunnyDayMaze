@@ -987,11 +987,11 @@ function gameOver(win) {
   
   if (isCarousel) {
     standardBtns.style.display = 'none';
-    carouselBtns?.style.display = 'flex';
+    if (carouselBtns) carouselBtns.style.display = 'flex';
     embedBtns.style.display = 'none';
   } else {
     standardBtns.style.display = 'flex';
-    carouselBtns?.style.display = 'none';
+    if (carouselBtns) carouselBtns.style.display = 'none';
     embedBtns.style.display = 'none';
   }
 
